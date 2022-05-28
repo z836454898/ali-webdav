@@ -131,10 +131,10 @@ public class AliYunDriverFileSystemStore implements IWebdavStore {
     public String[] getChildrenNames(ITransaction transaction, String folderUri) {
         LOGGER.info("getChildrenNames: {}", folderUri);
         TFile tFile = aliYunDriverClientService.getTFileByPath(folderUri);
-        if (tFile.getType().equals(FileType.file.name())) {
+        if (tFile.getKind().equals(FileType.file.getDescription())) {
             return new String[0];
         }
-        Set<TFile> tFileList = aliYunDriverClientService.getTFiles(tFile.getFile_id());
+        Set<TFile> tFileList = aliYunDriverClientService.getTFiles(tFile.getId());
         return tFileList.stream().map(TFile::getName).toArray(String[]::new);
     }
 
@@ -175,7 +175,16 @@ public class AliYunDriverFileSystemStore implements IWebdavStore {
         }
         return true;
     }
-
+    
+    /**
+     * StoredObject 用于展示在webdav上的文件或文件夹信息
+     * @param transaction
+     *      indicates that the method is within the scope of a WebDAV
+     *      transaction
+     * @param uri
+     *      URI
+     * @return
+     */
     @Override
     public StoredObject getStoredObject(ITransaction transaction, String uri) {
 
@@ -184,10 +193,10 @@ public class AliYunDriverFileSystemStore implements IWebdavStore {
         TFile tFile = aliYunDriverClientService.getTFileByPath(uri);
         if (tFile != null) {
             StoredObject so = new StoredObject();
-            so.setFolder(tFile.getType().equalsIgnoreCase("folder"));
+            so.setFolder(tFile.getKind().equalsIgnoreCase("folder"));
             so.setResourceLength(getResourceLength(transaction, uri));
-            so.setCreationDate(tFile.getCreated_at());
-            so.setLastModified(tFile.getUpdated_at());
+            so.setCreationDate(tFile.getCreated_time());
+            so.setLastModified(tFile.getModified_time());
             return so;
         }
 

@@ -1,32 +1,34 @@
 package com.github.maruifu.webdav.model.result;
 
 import java.util.Date;
-import java.util.Objects;
 
+/**
+ * 从云上获取的文件信息模板
+ */
 public class TFile {
-    private Date created_at;
+    private Date created_time; //创建时间
     private String domain_id;
     private String drive_id;
     private String encrypt_mode;
-    private String file_id;
+    private String id;
     private Boolean hidden;
-    private String name;
+    private String name; //文件名称
     private String file_name;
     private String parent_file_id;
     private String starred;
     private String status;
-    private String type;
-    private Date updated_at;
-    private String url;
-    private Long size;
+    private String kind; //文件类型
+    private Date modified_time; //修改时间
+    private String web_content_link; //文件链接
+    private Long size; //文件大小
     private String download_url;
 
-    public Date getCreated_at() {
-        return created_at;
+    public Date getCreated_time() {
+        return created_time;
     }
 
-    public void setCreated_at(Date created_at) {
-        this.created_at = created_at;
+    public void setCreated_time(Date created_time) {
+        this.created_time = created_time;
     }
 
     public String getDomain_id() {
@@ -53,12 +55,12 @@ public class TFile {
         this.encrypt_mode = encrypt_mode;
     }
 
-    public String getFile_id() {
-        return file_id;
+    public String getId() {
+        return id;
     }
 
-    public void setFile_id(String file_id) {
-        this.file_id = file_id;
+    public void setId(String id) {
+        this.id = id;
     }
 
     public Boolean getHidden() {
@@ -101,24 +103,24 @@ public class TFile {
         this.status = status;
     }
 
-    public String getType() {
-        return type;
+    public String getKind() {
+        return kind;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setKind(String kind) {
+        this.kind = kind;
     }
 
-    public Date getUpdated_at() {
-        return updated_at;
+    public Date getModified_time() {
+        return modified_time;
     }
 
-    public String getUrl() {
-        return url;
+    public String getWeb_content_link() {
+        return web_content_link;
     }
 
-    public void setUrl(String url) {
-        this.url = url;
+    public void setWeb_content_link(String web_content_link) {
+        this.web_content_link = web_content_link;
     }
 
     public Long getSize() {
@@ -145,7 +147,7 @@ public class TFile {
         this.file_name = file_name;
     }
 
-    public void setUpdated_at(Date updated_at) {
-        this.updated_at = updated_at;
+    public void setModified_time(Date modified_time) {
+        this.modified_time = modified_time;
     }
 }

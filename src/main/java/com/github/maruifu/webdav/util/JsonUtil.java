@@ -52,6 +52,7 @@ public class JsonUtil {
 
     public static Object getJsonNodeValue(String json, String path) {
         try {
+            //构造json节点树
             JsonNode jsonNode = getJsonNode(json);
             List<PathToken> pathTokens = getPathTokens(path);
             for (PathToken pathToken : pathTokens) {

@@ -38,6 +38,4 @@ public class WebdavApplication {
         filterRegistrationBean.setEnabled(true);
         return filterRegistrationBean;
     }
-
-
 }

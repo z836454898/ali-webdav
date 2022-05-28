@@ -34,6 +34,7 @@ public class AliYunDriverClientService {
     private static int chunkSize = 10485760; // 10MB
     private TFile rootTFile = null;
 
+    //缓存
     private static Cache<String, Set<TFile>> tFilesCache = Caffeine.newBuilder()
             .initialCapacity(128)
             .maximumSize(1024)
@@ -64,7 +65,7 @@ public class AliYunDriverClientService {
 
     private Set<TFile> getTFiles2(String nodeId) {
         List<TFile> tFileList = fileListFromApi(nodeId, null, new ArrayList<>());
-        tFileList.sort(Comparator.comparing(TFile::getUpdated_at).reversed());
+        tFileList.sort(Comparator.comparing(TFile::getModified_time).reversed());
         Set<TFile> tFileSets = new LinkedHashSet<>();
         for (TFile tFile : tFileList) {
             if (!tFileSets.add(tFile)) {
@@ -74,16 +75,29 @@ public class AliYunDriverClientService {
         // 对文件名进行去重，只保留最新的一个
         return tFileSets;
     }
-
+    
+    /**
+     * 发送请求获取文件列表
+     * @param nodeId
+     * @param marker
+     * @param all
+     * @return
+     */
     private List<TFile> fileListFromApi(String nodeId, String marker, List<TFile> all) {
-        FileListRequest listQuery = new FileListRequest();
-        listQuery.setMarker(marker);
-        listQuery.setLimit(100);
-        listQuery.setOrder_by("updated_at");
-        listQuery.setOrder_direction("DESC");
-        listQuery.setDrive_id(client.getDriveId());
-        listQuery.setParent_file_id(nodeId);
-        String json = client.post("/file/list", listQuery);
+        // 设置请求参数
+//        FileListRequest listQuery = new FileListRequest();
+        Map<String,String> params =new HashMap<>();
+        params.put("limit","100");
+        params.put("parent_id",nodeId);
+        params.put("filters","{\"phase\":{\"eq\":\"PHASE_TYPE_COMPLETE\"},\"trashed\":{\"eq\":false}}");
+        params.put("with_audit","true");
+//        listQuery.setMarker(marker);
+//        listQuery.setLimit(100);
+//        listQuery.setOrder_by("updated_at");
+//        listQuery.setOrder_direction("DESC");
+//        listQuery.setDrive_id(client.getDriveId());
+//        listQuery.setParent_id(nodeId);
+        String json = client.get("/files", params);
         TFileListResult<TFile> tFileListResult = JsonUtil.readValue(json, new TypeReference<TFileListResult<TFile>>() {
         });
         all.addAll(tFileListResult.getItems());
@@ -135,7 +149,7 @@ public class AliYunDriverClientService {
 //        uploadPreRequest.setContent_hash(UUID.randomUUID().toString());
         uploadPreRequest.setDrive_id(client.getDriveId());
         uploadPreRequest.setName(pathInfo.getName());
-        uploadPreRequest.setParent_file_id(parent.getFile_id());
+        uploadPreRequest.setParent_file_id(parent.getId());
         uploadPreRequest.setSize(size);
         List<UploadPreRequest.PartInfo> part_info_list = new ArrayList<>();
         for (int i = 0; i < chunkCount; i++) {
@@ -152,7 +166,7 @@ public class AliYunDriverClientService {
         List<UploadPreRequest.PartInfo> partInfoList = uploadPreResult.getPart_info_list();
         if (partInfoList != null) {
             if (size > 0) {
-                virtualTFileService.createTFile(parent.getFile_id(), uploadPreResult);
+                virtualTFileService.createTFile(parent.getId(), uploadPreResult);
             }
             LOGGER.info("文件预处理成功，开始上传。文件名：{}，上传URL数量：{}", path, partInfoList.size());
 
@@ -184,10 +198,10 @@ public class AliYunDriverClientService {
                         return;
                     }
                     client.upload(partInfo.getUpload_url(), buffer, 0, read);
-                    virtualTFileService.updateLength(parent.getFile_id(), uploadPreResult.getFile_id(), buffer.length);
+                    virtualTFileService.updateLength(parent.getId(), uploadPreResult.getFile_id(), buffer.length);
                     LOGGER.info("文件正在上传。文件名：{}，当前进度：{}/{}", path, (i + 1), partInfoList.size());
                 } catch (IOException e) {
-                    virtualTFileService.remove(parent.getFile_id(), uploadPreResult.getFile_id());
+                    virtualTFileService.remove(parent.getId(), uploadPreResult.getFile_id());
                     throw new WebdavException(e);
                 }
             }
@@ -201,7 +215,7 @@ public class AliYunDriverClientService {
         uploadFinalRequest.setUpload_id(uploadPreResult.getUpload_id());
 
         client.post("/file/complete", uploadFinalRequest);
-        virtualTFileService.remove(parent.getFile_id(), uploadPreResult.getFile_id());
+        virtualTFileService.remove(parent.getId(), uploadPreResult.getFile_id());
         LOGGER.info("文件上传成功。文件名：{}", path);
         clearCache();
     }
@@ -212,7 +226,7 @@ public class AliYunDriverClientService {
         TFile tFile = getTFileByPath(sourcePath);
         RenameRequest renameRequest = new RenameRequest();
         renameRequest.setDrive_id(client.getDriveId());
-        renameRequest.setFile_id(tFile.getFile_id());
+        renameRequest.setFile_id(tFile.getId());
         renameRequest.setName(newName);
         client.post("/file/update", renameRequest);
         clearCache();
@@ -226,8 +240,8 @@ public class AliYunDriverClientService {
         TFile targetTFile = getTFileByPath(targetPath);
         MoveRequest moveRequest = new MoveRequest();
         moveRequest.setDrive_id(client.getDriveId());
-        moveRequest.setFile_id(sourceTFile.getFile_id());
-        moveRequest.setTo_parent_file_id(targetTFile.getFile_id());
+        moveRequest.setFile_id(sourceTFile.getId());
+        moveRequest.setTo_parent_file_id(targetTFile.getId());
         client.post("/file/move", moveRequest);
         clearCache();
     }
@@ -240,7 +254,7 @@ public class AliYunDriverClientService {
         }
         RemoveRequest removeRequest = new RemoveRequest();
         removeRequest.setDrive_id(client.getDriveId());
-        removeRequest.setFile_id(tFile.getFile_id());
+        removeRequest.setFile_id(tFile.getId());
         client.post("/recyclebin/trash", removeRequest);
         clearCache();
     }
@@ -258,8 +272,8 @@ public class AliYunDriverClientService {
         CreateFileRequest createFileRequest = new CreateFileRequest();
         createFileRequest.setDrive_id(client.getDriveId());
         createFileRequest.setName(pathInfo.getName());
-        createFileRequest.setParent_file_id(parent.getFile_id());
-        createFileRequest.setType(FileType.folder.name());
+        createFileRequest.setParent_file_id(parent.getId());
+        createFileRequest.setType(FileType.folder.getDescription());
         String json = client.post("/file/create_with_proof", createFileRequest);
         TFile createFileResult = JsonUtil.readValue(json, TFile.class);
         if (createFileResult.getFile_name() == null) {
@@ -284,7 +298,7 @@ public class AliYunDriverClientService {
         TFile file = getTFileByPath(path);
         DownloadRequest downloadRequest = new DownloadRequest();
         downloadRequest.setDrive_id(client.getDriveId());
-        downloadRequest.setFile_id(file.getFile_id());
+        downloadRequest.setFile_id(file.getId());
         String json = client.post("/file/get_download_url", downloadRequest);
         Object url = JsonUtil.getJsonNodeValue(json, "url");
         LOGGER.debug("{} url = {}", path, url);
@@ -303,7 +317,7 @@ public class AliYunDriverClientService {
         if (tFile == null ) {
             return null;
         }
-        return getNodeIdByParentId(tFile.getFile_id(), pathInfo.getName());
+        return getNodeIdByParentId(tFile.getId(), pathInfo.getName());
     }
 
 
@@ -328,16 +342,16 @@ public class AliYunDriverClientService {
     private TFile getRootTFile() {
         if (rootTFile == null) {
 //            FileGetRequest fileGetRequest = new FileGetRequest();
-//            fileGetRequest.setFile_id("root");
+//            fileGetRequest.setId("root");
 //            fileGetRequest.setDrive_id(client.getDriveId());
 //            String json = client.post("/file/get", fileGetRequest);
 //            rootTFile = JsonUtil.readValue(json, TFile.class);
             rootTFile = new TFile();
             rootTFile.setName("/");
-            rootTFile.setFile_id("root");
-            rootTFile.setCreated_at(new Date());
-            rootTFile.setUpdated_at(new Date());
-            rootTFile.setType("folder");
+            rootTFile.setId("");
+            rootTFile.setCreated_time(new Date());
+            rootTFile.setModified_time(new Date());
+            rootTFile.setKind("folder");
         }
         return rootTFile;
     }
@@ -349,11 +363,14 @@ public class AliYunDriverClientService {
                 return tFile;
             }
         }
-
         return null;
     }
-
-
+    
+    /**
+     * 格式化url
+     * @param path url
+     * @return 格式化后的url
+     */
     private String normalizingPath(String path) {
         path = path.replaceAll("//", "/");
         if (path.endsWith("/")) {

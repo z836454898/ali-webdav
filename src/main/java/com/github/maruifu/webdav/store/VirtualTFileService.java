@@ -36,7 +36,7 @@ public class VirtualTFileService {
             return;
         }
         tFile.setSize(tFile.getSize() + length);
-        tFile.setUpdated_at(new Date());
+        tFile.setModified_time(new Date());
     }
 
     public void remove(String parentId, String fileId) {
@@ -57,11 +57,11 @@ public class VirtualTFileService {
 
     private TFile convert(UploadPreResult uploadPreResult) {
         TFile tFile = new TFile();
-        tFile.setCreated_at(new Date());
-        tFile.setFile_id(uploadPreResult.getFile_id());
+        tFile.setCreated_time(new Date());
+        tFile.setId(uploadPreResult.getFile_id());
         tFile.setName(uploadPreResult.getFile_name());
-        tFile.setType(FileType.file.name());
-        tFile.setUpdated_at(new Date());
+        tFile.setKind(FileType.file.getDescription());
+        tFile.setModified_time(new Date());
         tFile.setSize(0L);
         return tFile;
     }
